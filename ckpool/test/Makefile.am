@@ -1,0 +1,83 @@
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)
+LDADD = $(top_srcdir)/src/libckpool.a
+
+check_PROGRAMS = sha256 validate_address reject_stats
+TESTS = sha256 validate_address reject_stats
+
+sha256_SOURCES = sha256.c
+# Include the stratifier to exercise its actual per-client accounting path;
+# discard unrelated server entry points and their dependencies when linking.
+reject_stats_SOURCES = reject_stats.c
+reject_stats_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+reject_stats_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+reject_stats_LDFLAGS = -Wl,--gc-sections
+
+# Exercise address validation with a local RPC stub; no bitcoind is contacted.
+validate_address_SOURCES = validate_address.c $(top_srcdir)/src/bitcoin.c \
+	$(top_srcdir)/src/yyjson.c $(top_srcdir)/src/yyjson_util.c
+validate_address_CPPFLAGS = $(AM_CPPFLAGS)
+
+if HAVE_SV2
+AM_CPPFLAGS += @SV2_CFLAGS@
+check_PROGRAMS += sv2_codec sv2_codec_fuzz sv2_authority_b58 sv2_noise_hs sv2_hs_limit \
+	sv2_idle sv2_tx sv2_cb sv2_bridge sv2_groups sv2_jd_retention sv2_proxy_jobs sv2_jdc_session
+TESTS += sv2_codec sv2_codec_fuzz sv2_authority_b58 sv2_noise_hs sv2_hs_limit sv2_idle \
+	sv2_tx sv2_cb sv2_bridge sv2_groups sv2_jd_retention sv2_proxy_jobs sv2_jdc_session
+# Include JDS internals to check retained snapshots without node/IPC workers.
+sv2_jd_retention_SOURCES = sv2_jd_retention.c
+sv2_jd_retention_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+sv2_jd_retention_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+sv2_jd_retention_LDFLAGS = -Wl,--gc-sections
+sv2_jd_retention_LDADD = $(top_srcdir)/src/libckpool.a @SV2_LIBS@
+sv2_groups_SOURCES = sv2_groups.c
+sv2_groups_CPPFLAGS = $(AM_CPPFLAGS)
+# Codec is in libckpool.a — do not list src/sv2_codec.c here (same object
+# basename "sv2_codec.o" made test/.deps and src/.deps collide).
+sv2_codec_SOURCES = sv2_codec.c
+sv2_codec_LDADD = $(top_srcdir)/src/libckpool.a
+sv2_codec_fuzz_SOURCES = sv2_codec_fuzz.c
+sv2_codec_fuzz_LDADD = $(top_srcdir)/src/libckpool.a
+# sv2_tx.c is in libckpool.a too (same object-basename collision rule).
+sv2_tx_SOURCES = sv2_tx.c
+sv2_tx_LDADD = $(top_srcdir)/src/libckpool.a
+sv2_cb_SOURCES = sv2_cb.c
+sv2_cb_LDADD = $(top_srcdir)/src/libckpool.a
+# sv2_bridge.c is in libckpool.a too (same object-basename collision rule).
+sv2_bridge_SOURCES = sv2_bridge.c
+sv2_bridge_LDADD = $(top_srcdir)/src/libckpool.a
+# Default mutational budget is enough for make check; override with SV2_FUZZ_ITERS
+# noise/conn still need their own objects; codec comes from the library
+sv2_authority_b58_SOURCES = sv2_authority_b58.c \
+	$(top_srcdir)/src/sv2_noise.c
+sv2_authority_b58_LDADD = $(top_srcdir)/src/libckpool.a @SV2_LIBS@
+sv2_authority_b58_CPPFLAGS = $(AM_CPPFLAGS) -DHAVE_SV2
+sv2_noise_hs_SOURCES = sv2_noise_hs.c \
+	$(top_srcdir)/src/sv2_noise.c
+sv2_noise_hs_LDADD = $(top_srcdir)/src/libckpool.a @SV2_LIBS@
+sv2_noise_hs_CPPFLAGS = $(AM_CPPFLAGS) -DHAVE_SV2
+sv2_hs_limit_SOURCES = sv2_hs_limit.c \
+	$(top_srcdir)/src/sv2_conn.c \
+	$(top_srcdir)/src/sv2_noise.c
+sv2_hs_limit_LDADD = $(top_srcdir)/src/libckpool.a @SV2_LIBS@
+sv2_hs_limit_CPPFLAGS = $(AM_CPPFLAGS) -DHAVE_SV2
+sv2_idle_SOURCES = sv2_idle.c \
+	$(top_srcdir)/src/sv2_conn.c \
+	$(top_srcdir)/src/sv2_noise.c
+sv2_idle_LDADD = $(top_srcdir)/src/libckpool.a @SV2_LIBS@
+sv2_idle_CPPFLAGS = $(AM_CPPFLAGS) -DHAVE_SV2
+endif
+
+if HAVE_SV2
+sv2_proxy_jobs_SOURCES = sv2_proxy_jobs.c
+sv2_proxy_jobs_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+sv2_proxy_jobs_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+sv2_proxy_jobs_LDFLAGS = -Wl,--gc-sections
+endif
+
+if HAVE_SV2
+sv2_jdc_session_SOURCES = sv2_jdc_session.c $(top_srcdir)/src/sv2_noise.c
+sv2_jdc_session_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+sv2_jdc_session_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+sv2_jdc_session_LDFLAGS = -Wl,--gc-sections
+sv2_jdc_session_LDADD = $(top_srcdir)/src/libckpool.a @SV2_LIBS@
+endif
